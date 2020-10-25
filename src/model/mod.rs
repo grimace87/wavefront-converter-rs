@@ -10,55 +10,40 @@ pub type FaceIndices = [u16; 3];
 const FILE_VERSION_NUMBER: u32 = 1;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
-    nx: f32,
-    ny: f32,
-    nz: f32,
-    s: f32,
-    t: f32
+    position: Vec3,
+    normal: Vec3,
+    tex_coord: Vec2
 }
 
 impl Vertex {
     pub fn new_empty() -> Vertex {
         Vertex {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            nx: 0.0,
-            ny: 0.0,
-            nz: 0.0,
-            s: 0.0,
-            t: 0.0
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0]
         }
     }
 
     pub fn from_components(position: &Vec3, normal: &Vec3, tex_coord: &Vec2) -> Vertex {
         Vertex {
-            x: position[0],
-            y: position[1],
-            z: position[2],
-            nx: normal[0],
-            ny: normal[1],
-            nz: normal[2],
-            s: tex_coord[0],
-            t: tex_coord[1]
+            position: [position[0], position[1], position[2]],
+            normal: [normal[0], normal[1], normal[2]],
+            tex_coord: [tex_coord[0], tex_coord[1]]
         }
     }
 
     fn positions_normals(&self) -> [f32; 6] {
-        [ self.x, self.y, self.z, self.nx, self.ny, self.nz ]
+        [ self.position[0], self.position[1], self.position[2], self.normal[0], self.normal[1], self.normal[2] ]
     }
 
     fn positions_tex_coords(&self) -> [f32; 5] {
-        [ self.x, self.y, self.z, self.s, self.t ]
+        [ self.position[0], self.position[1], self.position[2], self.tex_coord[0], self.tex_coord[1] ]
     }
 
     fn positions(&self) -> [f32; 3] {
-        [ self.x, self.y, self.z ]
+        [ self.position[0], self.position[1], self.position[2] ]
     }
 }
 
