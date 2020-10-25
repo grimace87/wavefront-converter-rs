@@ -21,6 +21,7 @@ mod tests {
         let mut output_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         output_directory.push("resources");
         output_directory.push("models");
+        std::fs::create_dir(&output_directory).unwrap();
         process_directory(&model_directory, &output_directory);
 
         for entry in std::fs::read_dir(output_directory).unwrap() {
