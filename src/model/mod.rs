@@ -6,7 +6,6 @@ use vulkano;
 
 pub type Vec2 = [f32; 2];
 pub type Vec3 = [f32; 3];
-pub type FaceIndices = [u16; 3];
 
 const FILE_VERSION_NUMBER: u32 = 1;
 
@@ -93,7 +92,7 @@ impl RawModelData {
 pub struct Model {
     name: String,
     pub interleaved_vertices: Vec<Vertex>,
-    pub face_indices: Vec<FaceIndices>,
+    pub face_indices: Vec<u16>,
     index_map: HashMap<u64, u16>
 }
 
@@ -126,8 +125,10 @@ impl Model {
         }
     }
 
-    pub fn add_face(&mut self, indices: FaceIndices) {
-        self.face_indices.push(indices);
+    pub fn add_face(&mut self, indices: [u16; 3]) {
+        self.face_indices.push(indices[0]);
+        self.face_indices.push(indices[1]);
+        self.face_indices.push(indices[2]);
     }
 
     pub unsafe fn write_data_to_file(&self, file: &mut File, include_normals: bool, include_tex_coords: bool) -> std::io::Result<()> {
@@ -163,7 +164,7 @@ impl Model {
         let index_count = self.face_indices.len() as u32;
         file.write_all(&index_count.to_ne_bytes())?;
         for face_index_set in self.face_indices.iter() {
-            file.write_all(std::mem::transmute::<&[u16; 3], &[u8; 6]>(face_index_set))?;
+            file.write_all(std::mem::transmute::<&u16, &[u8; 6]>(face_index_set))?;
         }
 
         Ok(())
@@ -199,10 +200,10 @@ impl Model {
         let face_count_offset = (16 + vertex_count * 8 * 4) as usize;
         let face_count_ptr = stream[face_count_offset..(face_count_offset + 4)].as_ptr();
         let face_count = *std::mem::transmute::<*const u8, *const u32>(face_count_ptr);
-        let mut face_indices: Vec<FaceIndices> = vec![[0u16; 3]; face_count as usize];
+        let mut face_indices: Vec<u16> = vec![0u16; (face_count * 3) as usize];
         let face_data_ptr = stream[(face_count_offset + 4)..].as_ptr();
-        let face_ptr = std::mem::transmute::<*const u8, *const FaceIndices>(face_data_ptr);
-        let face_slice = std::slice::from_raw_parts(face_ptr, face_count as usize);
+        let face_ptr = std::mem::transmute::<*const u8, *const u16>(face_data_ptr);
+        let face_slice = std::slice::from_raw_parts(face_ptr, (face_count * 3) as usize);
         face_indices.copy_from_slice(face_slice);
 
         Model {
