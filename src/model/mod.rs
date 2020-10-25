@@ -104,8 +104,8 @@ impl RawModelData {
 
 pub struct Model {
     name: String,
-    interleaved_vertices: Vec<Vertex>,
-    face_indices: Vec<FaceIndices>,
+    pub interleaved_vertices: Vec<Vertex>,
+    pub face_indices: Vec<FaceIndices>,
     index_map: HashMap<u64, u16>
 }
 
