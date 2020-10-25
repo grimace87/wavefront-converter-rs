@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::fs::File;
 use std::fmt::{Debug, Formatter};
+use vulkano;
 
 pub type Vec2 = [f32; 2];
 pub type Vec3 = [f32; 3];
@@ -16,6 +17,8 @@ pub struct Vertex {
     normal: Vec3,
     tex_coord: Vec2
 }
+
+vulkano::impl_vertex!(Vertex, position, normal, tex_coord);
 
 impl Vertex {
     pub fn new_empty() -> Vertex {
