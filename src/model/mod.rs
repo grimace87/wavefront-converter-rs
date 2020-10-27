@@ -161,10 +161,10 @@ impl Model {
             }
         }
 
-        let index_count = self.face_indices.len() as u32;
-        file.write_all(&index_count.to_ne_bytes())?;
+        let face_count = (self.face_indices.len() / 3) as u32;
+        file.write_all(&face_count.to_ne_bytes())?;
         for face_index_set in self.face_indices.iter() {
-            file.write_all(std::mem::transmute::<&u16, &[u8; 6]>(face_index_set))?;
+            file.write_all(std::mem::transmute::<&u16, &[u8; 2]>(face_index_set))?;
         }
 
         Ok(())
