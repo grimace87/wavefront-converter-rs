@@ -10,11 +10,11 @@ pub type Vec3 = [f32; 3];
 const FILE_VERSION_NUMBER: u32 = 1;
 
 #[repr(C)]
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Vertex {
-    position: Vec3,
-    normal: Vec3,
-    tex_coord: Vec2
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub tex_coord: Vec2
 }
 
 vulkano::impl_vertex!(Vertex, position, normal, tex_coord);
