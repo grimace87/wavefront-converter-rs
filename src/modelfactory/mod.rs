@@ -19,31 +19,17 @@ struct IndexSet {
 
 pub struct ModelFactory {
     source_file_path: PathBuf,
-    include_normals: bool,
-    include_tex_coords: bool,
     raw_model_data: RawModelData,
     models: Vec<Model>
 }
 
 impl ModelFactory {
-    pub fn new(file_path: PathBuf, include_normals: bool, include_tex_coords: bool) -> ModelFactory {
+    pub fn new(file_path: PathBuf) -> ModelFactory {
         ModelFactory {
             source_file_path: file_path,
-            include_normals,
-            include_tex_coords,
             raw_model_data: RawModelData::new(),
             models: vec![]
         }
-    }
-
-    pub fn print_status_message(&self) {
-        let msg = match (self.include_normals, self.include_tex_coords) {
-            (true, true) => "Including normals and texture coordinates",
-            (true, false) => "Including normals",
-            (false, true) => "Including texture coordinates",
-            _ => "Including position data only (no flags were supplied)"
-        };
-        println!("{}", msg);
     }
 
     fn extract_next_model_from_stream(&mut self, model_name: String, lines_iter: &mut Lines) -> Option<String> {
@@ -177,7 +163,7 @@ impl ModelFactory {
             output_file.set_extension("mdl");
             let mut file = File::create(output_file).unwrap();
             let result = unsafe {
-                model.write_data_to_file(&mut file, self.include_normals, self.include_tex_coords)
+                model.write_data_to_file(&mut file)
             };
             match result {
                 Ok(()) => println!(" {}.mdl", model.get_name()),

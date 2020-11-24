@@ -140,8 +140,7 @@ pub fn process_directory(src_path: &PathBuf, dst_path: &PathBuf) {
 }
 
 fn process_file(src_file_path: PathBuf, dst_path: &PathBuf) {
-    let mut factory = ModelFactory::new(src_file_path, true, true);
-    factory.print_status_message();
+    let mut factory = ModelFactory::new(src_file_path);
     factory.extract_all_models_from_file();
     factory.export_all_models(dst_path);
 }

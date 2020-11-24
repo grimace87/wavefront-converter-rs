@@ -35,18 +35,6 @@ impl Vertex {
             tex_coord: [tex_coord[0], tex_coord[1]]
         }
     }
-
-    fn positions_normals(&self) -> [f32; 6] {
-        [ self.position[0], self.position[1], self.position[2], self.normal[0], self.normal[1], self.normal[2] ]
-    }
-
-    fn positions_tex_coords(&self) -> [f32; 5] {
-        [ self.position[0], self.position[1], self.position[2], self.tex_coord[0], self.tex_coord[1] ]
-    }
-
-    fn positions(&self) -> [f32; 3] {
-        [ self.position[0], self.position[1], self.position[2] ]
-    }
 }
 
 pub struct RawModelData {
@@ -131,34 +119,13 @@ impl Model {
         self.face_indices.push(indices[2]);
     }
 
-    pub unsafe fn write_data_to_file(&self, file: &mut File, include_normals: bool, include_tex_coords: bool) -> std::io::Result<()> {
+    pub unsafe fn write_data_to_file(&self, file: &mut File) -> std::io::Result<()> {
         file.write_all(&FILE_VERSION_NUMBER.to_ne_bytes())?;
-        file.write_all(&(include_normals as i32).to_ne_bytes())?;
-        file.write_all(&(include_tex_coords as i32).to_ne_bytes())?;
 
         let vertex_count = self.interleaved_vertices.len() as u32;
         file.write_all(&vertex_count.to_ne_bytes())?;
-        match (include_normals, include_tex_coords) {
-            (true, true) => {
-                for vertex in self.interleaved_vertices.iter() {
-                    file.write_all(std::mem::transmute::<&Vertex, &[u8; 32]>(vertex))?;
-                }
-            },
-            (true, false) => {
-                for vertex in self.interleaved_vertices.iter() {
-                    file.write_all(std::mem::transmute::<&[f32; 6], &[u8; 24]>(&vertex.positions_normals()))?;
-                }
-            }
-            (false, true) => {
-                for vertex in self.interleaved_vertices.iter() {
-                    file.write_all(std::mem::transmute::<&[f32; 5], &[u8; 20]>(&vertex.positions_tex_coords()))?;
-                }
-            }
-            _ => {
-                for vertex in self.interleaved_vertices.iter() {
-                    file.write_all(std::mem::transmute::<&[f32; 3], &[u8; 12]>(&vertex.positions()))?;
-                }
-            }
+        for vertex in self.interleaved_vertices.iter() {
+            file.write_all(std::mem::transmute::<&Vertex, &[u8; 32]>(vertex))?;
         }
 
         let face_count = (self.face_indices.len() / 3) as u32;
@@ -173,31 +140,21 @@ impl Model {
     pub unsafe fn from_bytes(bytes: &Vec<u8>) -> Model {
         let stream = bytes.as_slice();
         let version_ptr = stream.as_ptr();
-        let normals_ptr = stream[4..8].as_ptr();
-        let tex_coords_ptr = stream[8..12].as_ptr();
 
         let version_number = *std::mem::transmute::<*const u8, *const u32>(version_ptr);
-        let include_normals = *std::mem::transmute::<*const u8, *const i32>(normals_ptr) != 0;
-        let include_tex_coords = *std::mem::transmute::<*const u8, *const i32>(tex_coords_ptr) != 0;
         if version_number != FILE_VERSION_NUMBER {
             panic!("Bad file version: expected {} but was {}", FILE_VERSION_NUMBER, version_number);
         }
-        if !include_normals {
-            panic!("Excluding normals is not currently supported");
-        }
-        if !include_tex_coords {
-            panic!("Excluding texture coordinates is not currently supported");
-        }
 
-        let vertex_count_ptr = stream[12..16].as_ptr();
+        let vertex_count_ptr = stream[4..8].as_ptr();
         let vertex_count = *std::mem::transmute::<*const u8, *const u32>(vertex_count_ptr);
         let mut interleaved_vertices: Vec<Vertex> = vec![Vertex::new_empty(); vertex_count as usize];
-        let vertex_data_ptr = stream[16..(16 + vertex_count as usize * 8 * 4)].as_ptr();
+        let vertex_data_ptr = stream[8..(8 + vertex_count as usize * 8 * 4)].as_ptr();
         let vertex_ptr = std::mem::transmute::<*const u8, *const Vertex>(vertex_data_ptr);
         let vertex_slice = std::slice::from_raw_parts(vertex_ptr, vertex_count as usize);
         interleaved_vertices.copy_from_slice(vertex_slice);
 
-        let face_count_offset = (16 + vertex_count * 8 * 4) as usize;
+        let face_count_offset = (8 + vertex_count * 8 * 4) as usize;
         let face_count_ptr = stream[face_count_offset..(face_count_offset + 4)].as_ptr();
         let face_count = *std::mem::transmute::<*const u8, *const u32>(face_count_ptr);
         let mut face_indices: Vec<u16> = vec![0u16; (face_count * 3) as usize];
