@@ -14,7 +14,7 @@ fn main() {
 
     let file_name = &args[1];
     let mut input_path = env::current_dir().unwrap();
-    for segment in file_name.split("/") {
+    for segment in file_name.split('/') {
         if segment == "." {
             input_path.pop();
         } else {

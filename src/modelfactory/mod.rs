@@ -27,18 +27,15 @@ impl ModelFactory {
     pub fn new(file_path: PathBuf) -> ModelFactory {
         ModelFactory {
             source_file_path: file_path,
-            raw_model_data: RawModelData::new(),
+            raw_model_data: RawModelData::default(),
             models: vec![]
         }
     }
 
     fn extract_next_model_from_stream(&mut self, model_name: String, lines_iter: &mut Lines) -> Option<String> {
         let mut model = Model::new(model_name);
-        loop {
-            let mut line_parts = match lines_iter.next() {
-                Some(l) => l.split_whitespace(),
-                None => break
-            };
+        for l in lines_iter {
+            let mut line_parts = l.split_whitespace();
             let key = match line_parts.next() {
                 Some(k) => k,
                 None => break
@@ -63,11 +60,7 @@ impl ModelFactory {
                 },
                 KEY_FACE => {
                     let mut index_sets: Vec<IndexSet> = vec![];
-                    loop {
-                        let grouping = match line_parts.next() {
-                            Some(g) => g,
-                            None => break
-                        };
+                    while let Some(grouping) = line_parts.next() {
                         let first_slash = grouping.find('/').unwrap();
                         let second_slash = grouping.rfind('/').unwrap();
                         let position_index: u16 = grouping[0..first_slash].parse::<u16>().unwrap() - 1;
@@ -94,9 +87,7 @@ impl ModelFactory {
                         model.get_index(grouping.position_index as u64, grouping.normal_index as u64, grouping.tex_coord_index as u64, vertex)
                     };
 
-                    let no_of_groupings = index_sets.len();
-                    for i in 2..no_of_groupings {
-                        let grouping = &index_sets[i];
+                    for grouping in index_sets.iter().take(index_sets.len()).skip(2) {
                         let position = self.raw_model_data.get_raw_position(grouping.position_index).unwrap();
                         let normal = self.raw_model_data.get_raw_normal(grouping.normal_index).unwrap();
                         let tex_coord = self.raw_model_data.get_raw_tex_coord(grouping.tex_coord_index).unwrap();
@@ -124,20 +115,13 @@ impl ModelFactory {
     pub fn extract_all_models_from_file(&mut self) {
         let file_contents = fs::read_to_string(&self.source_file_path).unwrap();
         let mut lines_iter = file_contents.lines();
-        loop {
-            let line = match lines_iter.next() {
-                Some(l) => l.trim(),
-                None => break
-            };
+        while let Some(l) = lines_iter.next() {
+            let line = l.trim();
             if line.is_empty() {
                 continue;
             }
             let mut line_parts = line.split_whitespace();
-            loop {
-                let part = match line_parts.next() {
-                    Some(p) => p,
-                    None => break
-                };
+            while let Some(part) = line_parts.next() {
                 if part == KEY_OBJECT {
                     let mut model_name = match line_parts.next() {
                         Some(name) => String::from(name),

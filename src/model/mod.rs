@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::fs::File;
 use std::fmt::{Debug, Formatter};
-use vulkano;
 
 pub type Vec2 = [f32; 2];
 pub type Vec3 = [f32; 3];
@@ -44,7 +43,7 @@ pub struct RawModelData {
 }
 
 impl RawModelData {
-    pub fn new() -> RawModelData {
+    fn new() -> RawModelData {
         RawModelData {
             raw_positions: vec![],
             raw_tex_coords: vec![],
@@ -74,6 +73,12 @@ impl RawModelData {
 
     pub fn get_raw_tex_coord(&self, index: u16) -> Option<&Vec2> {
         self.raw_tex_coords.get(index as usize)
+    }
+}
+
+impl Default for RawModelData {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -119,47 +124,50 @@ impl Model {
         self.face_indices.push(indices[2]);
     }
 
+    /// # Safety
+    /// Should be safe to use - current self should have well-formed vertex data Vecs
     pub unsafe fn write_data_to_file(&self, file: &mut File) -> std::io::Result<()> {
         file.write_all(&FILE_VERSION_NUMBER.to_ne_bytes())?;
 
         let vertex_count = self.interleaved_vertices.len() as u32;
         file.write_all(&vertex_count.to_ne_bytes())?;
         for vertex in self.interleaved_vertices.iter() {
-            file.write_all(std::mem::transmute::<&Vertex, &[u8; 32]>(vertex))?;
+            file.write_all(&*(vertex as *const Vertex as *const [u8; 32]))?;
         }
 
         let face_count = (self.face_indices.len() / 3) as u32;
         file.write_all(&face_count.to_ne_bytes())?;
         for face_index_set in self.face_indices.iter() {
-            file.write_all(std::mem::transmute::<&u16, &[u8; 2]>(face_index_set))?;
+            file.write_all(&*(face_index_set as *const u16 as *const [u8; 2]))?;
         }
 
         Ok(())
     }
 
-    pub unsafe fn from_bytes(bytes: &Vec<u8>) -> Model {
-        let stream = bytes.as_slice();
-        let version_ptr = stream.as_ptr();
+    /// # Safety
+    /// Should be safe if processing files generated with the same version of this tool
+    pub unsafe fn from_bytes(bytes: &[u8]) -> Model {
+        let version_ptr = bytes.as_ptr();
 
-        let version_number = *std::mem::transmute::<*const u8, *const u32>(version_ptr);
+        let version_number = *(version_ptr as *const u32);
         if version_number != FILE_VERSION_NUMBER {
             panic!("Bad file version: expected {} but was {}", FILE_VERSION_NUMBER, version_number);
         }
 
-        let vertex_count_ptr = stream[4..8].as_ptr();
-        let vertex_count = *std::mem::transmute::<*const u8, *const u32>(vertex_count_ptr);
+        let vertex_count_ptr = bytes[4..8].as_ptr();
+        let vertex_count = *(vertex_count_ptr as *const u32);
         let mut interleaved_vertices: Vec<Vertex> = vec![Vertex::new_empty(); vertex_count as usize];
-        let vertex_data_ptr = stream[8..(8 + vertex_count as usize * 8 * 4)].as_ptr();
-        let vertex_ptr = std::mem::transmute::<*const u8, *const Vertex>(vertex_data_ptr);
+        let vertex_data_ptr = bytes[8..(8 + vertex_count as usize * 8 * 4)].as_ptr();
+        let vertex_ptr = vertex_data_ptr as *const Vertex;
         let vertex_slice = std::slice::from_raw_parts(vertex_ptr, vertex_count as usize);
         interleaved_vertices.copy_from_slice(vertex_slice);
 
         let face_count_offset = (8 + vertex_count * 8 * 4) as usize;
-        let face_count_ptr = stream[face_count_offset..(face_count_offset + 4)].as_ptr();
-        let face_count = *std::mem::transmute::<*const u8, *const u32>(face_count_ptr);
+        let face_count_ptr = bytes[face_count_offset..(face_count_offset + 4)].as_ptr();
+        let face_count = *(face_count_ptr as *const u32);
         let mut face_indices: Vec<u16> = vec![0u16; (face_count * 3) as usize];
-        let face_data_ptr = stream[(face_count_offset + 4)..].as_ptr();
-        let face_ptr = std::mem::transmute::<*const u8, *const u16>(face_data_ptr);
+        let face_data_ptr = bytes[(face_count_offset + 4)..].as_ptr();
+        let face_ptr = face_data_ptr as *const u16;
         let face_slice = std::slice::from_raw_parts(face_ptr, (face_count * 3) as usize);
         face_indices.copy_from_slice(face_slice);
 

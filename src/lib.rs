@@ -83,7 +83,7 @@ mod tests {
 
                 let mut bytes = vec![0u8; size_bytes];
                 file.read_exact(bytes.as_mut_slice()).unwrap();
-                let model = unsafe { Model::from_bytes(&bytes) };
+                let model = unsafe { Model::from_bytes(bytes.as_slice()) };
                 println!("Read back model: {:?}", model);
             }
         }
@@ -113,7 +113,7 @@ mod tests {
         let size_bytes = metadata.len() as usize;
         let mut bytes = vec![0u8; size_bytes];
         file.read_exact(bytes.as_mut_slice()).unwrap();
-        let model = unsafe { Model::from_bytes(&bytes) };
+        let model = unsafe { Model::from_bytes(bytes.as_slice()) };
 
         assert_eq!(model.interleaved_vertices.len(), 24); // 3 unique vertices per corner (3 possible normals)
         assert_eq!(model.face_indices.len(), 36);
