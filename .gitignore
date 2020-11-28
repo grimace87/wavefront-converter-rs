@@ -4,3 +4,4 @@
 /resources/models
 Cargo.lock
 *.mdl
+*.csn

@@ -23,5 +23,6 @@ fn main() {
     }
 
     let output_path = env::current_dir().unwrap();
-    process_directory(&input_path, &output_path);
+    let collisions_path = env::current_dir().unwrap();
+    process_directory(&input_path, &output_path, Some(&collisions_path));
 }

@@ -1,3 +1,4 @@
+pub mod collisiondata;
 pub mod model;
 pub mod modelfactory;
 
@@ -10,6 +11,7 @@ mod tests {
     use std::path::PathBuf;
     use crate::process_directory;
     use crate::model::{Model, Vertex};
+    use crate::collisiondata::CollisionData;
     use std::fs::File;
     use std::io::Read;
 
@@ -68,23 +70,28 @@ mod tests {
         if !output_directory.is_dir() {
             std::fs::create_dir(&output_directory).unwrap();
         }
-        process_directory(&model_directory, &output_directory);
+        process_directory(&model_directory, &output_directory, None);
 
         for entry in std::fs::read_dir(output_directory).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
-            if path.is_file() {
-                println!("Processing file: {}", path.as_os_str().to_str().unwrap());
+            if !path.is_file() {
+                continue;
+            }
+            if let Some(ext) = path.extension() {
+                if ext.eq("mdl") {
+                    println!("Processing file: {}", path.as_os_str().to_str().unwrap());
 
-                let mut file = File::open(&path).unwrap();
+                    let mut file = File::open(&path).unwrap();
 
-                let metadata = std::fs::metadata(&path).unwrap();
-                let size_bytes = metadata.len() as usize;
+                    let metadata = std::fs::metadata(&path).unwrap();
+                    let size_bytes = metadata.len() as usize;
 
-                let mut bytes = vec![0u8; size_bytes];
-                file.read_exact(bytes.as_mut_slice()).unwrap();
-                let model = unsafe { Model::from_bytes(bytes.as_slice()) };
-                println!("Read back model: {:?}", model);
+                    let mut bytes = vec![0u8; size_bytes];
+                    file.read_exact(bytes.as_mut_slice()).unwrap();
+                    let model = unsafe { Model::from_bytes(bytes.as_slice()) };
+                    println!("Read back model: {:?}", model);
+                }
             }
         }
     }
@@ -103,7 +110,7 @@ mod tests {
         if !output_directory.is_dir() {
             std::fs::create_dir(&output_directory).unwrap();
         }
-        process_directory(&model_directory, &output_directory);
+        process_directory(&model_directory, &output_directory, None);
 
         let mut model_file_path = output_directory;
         model_file_path.push("Cube.mdl");
@@ -120,9 +127,50 @@ mod tests {
         assert_eq!(model.interleaved_vertices, expected_vertex_data());
         assert_eq!(model.face_indices, expected_index_data());
     }
+
+    #[test]
+    fn scrutinise_enclosure_collisions() {
+        // Transcodes the Enclosure model, including generating collision data, then parses the
+        // generated collisions file and checks for the expected data
+
+        let mut model_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        model_directory.push("resources");
+        model_directory.push("tests");
+        model_directory.push("closed");
+        let mut model_output_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        model_output_directory.push("resources");
+        model_output_directory.push("models");
+        if !model_output_directory.is_dir() {
+            std::fs::create_dir(&model_output_directory).unwrap();
+        }
+        let mut collision_output_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        collision_output_directory.push("resources");
+        collision_output_directory.push("models");
+        if !collision_output_directory.is_dir() {
+            std::fs::create_dir(&collision_output_directory).unwrap();
+        }
+        process_directory(&model_directory, &model_output_directory, Some(&collision_output_directory));
+
+        let mut collision_file_path = collision_output_directory;
+        collision_file_path.push("Enclosure.csn");
+        assert!(collision_file_path.is_file());
+        let mut file = File::open(&collision_file_path).unwrap();
+        let metadata = std::fs::metadata(&collision_file_path).unwrap();
+        let size_bytes = metadata.len() as usize;
+        let mut bytes = vec![0u8; size_bytes];
+        file.read_exact(bytes.as_mut_slice()).unwrap();
+        let collision_data = unsafe { CollisionData::from_bytes(bytes.as_slice()) };
+
+        assert_eq!(collision_data.extent_x, [-3.0, 5.25]);
+        assert_eq!(collision_data.extent_y, [0.0, 4.0]);
+        assert_eq!(collision_data.extent_z, [-5.0, 3.0]);
+        assert_eq!(collision_data.traction_surfaces.len(), 18);
+        assert_eq!(collision_data.sliding_surfaces.len(), 2);
+        assert_eq!(collision_data.walls.len(), 18);
+    }
 }
 
-pub fn process_directory(src_path: &PathBuf, dst_path: &PathBuf) {
+pub fn process_directory(src_path: &PathBuf, dst_path: &PathBuf, collisions_dst_path: Option<&PathBuf>) {
     println!("Processing models in directory {:?}: ", src_path);
     for entry in fs::read_dir(src_path).unwrap() {
         let entry = entry.unwrap();
@@ -132,15 +180,16 @@ pub fn process_directory(src_path: &PathBuf, dst_path: &PathBuf) {
             None => continue
         };
         match extension.to_str() {
-            Some("obj") => process_file(path, dst_path),
+            Some("obj") => process_file(path, dst_path, collisions_dst_path),
             _ => continue
         };
     }
     println!("Models successfully processed");
 }
 
-fn process_file(src_file_path: PathBuf, dst_path: &PathBuf) {
+fn process_file(src_file_path: PathBuf, dst_path: &PathBuf, collisions_dst_path: Option<&PathBuf>) {
     let mut factory = ModelFactory::new(src_file_path);
-    factory.extract_all_models_from_file();
-    factory.export_all_models(dst_path);
+    let include_collisions = collisions_dst_path.is_some();
+    factory.extract_all_models_from_file(include_collisions);
+    factory.export_all(dst_path, collisions_dst_path);
 }

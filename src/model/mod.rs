@@ -3,10 +3,10 @@ use std::io::Write;
 use std::fs::File;
 use std::fmt::{Debug, Formatter};
 
+use crate::modelfactory::FILE_VERSION_NUMBER;
+
 pub type Vec2 = [f32; 2];
 pub type Vec3 = [f32; 3];
-
-const FILE_VERSION_NUMBER: u32 = 1;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
